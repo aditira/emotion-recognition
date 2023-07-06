@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Collect Emotion Dataset</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.1.2/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-10 rounded-lg shadow-xl">
+        <div class="flex items-center justify-center mb-5">
+            <video id="video" autoplay class="border-2 border-gray-300 rounded-lg"></video>
+        </div>
+        <select id="emotionInput" class="w-full p-2 mb-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+            <option value="" disabled selected hidden>Choose emotion...</option>
+            <option value="happy">Happy</option>
+            <option value="sad">Sad</option>
+            <option value="angry">Angry</option>
+            <option value="stress">Stress</option>
+            <option value="surprised">Surprised</option>
+            <option value="neutral">Neutral</option>
+        </select>
+        <div class="flex space-x-4">
+            <button id="captureButton" class="w-full p-2 border-none bg-indigo-500 text-white font-semibold rounded-lg shadow-lg hover:bg-indigo-600 transition duration-200">Capture</button>
+            <button id="predictButton" class="w-full p-2 border-none bg-indigo-500 text-white font-semibold rounded-lg shadow-lg hover:bg-indigo-600 transition duration-200">Predict Emotion</button>
+        </div>
+        <div id="result" class="mt-5 text-center hidden">
+            <h2 class="text-lg font-semibold mb-2">Predicted Emotion:</h2>
+            <p id="emotionOutput" class="text-xl font-bold"></p>
+        </div>
+    </div>
+
+    <script>
+        var video = document.getElementById('video');
+        var captureButton = document.getElementById('captureButton');
+        var predictButton = document.getElementById('predictButton');
+        var emotionInput = document.getElementById('emotionInput');
+        var resultDiv = document.getElementById('result');
+        var emotionOutput = document.getElementById('emotionOutput');
+
+        var constraints = { video: true };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(function (stream) {
+                video.srcObject = stream;
+            })
+            .catch(function (error) {
+                console.log('Error: ' + error);
+            });
+
+        captureButton.addEventListener('click', function () {
+            var emotionLabel = emotionInput.value;
+
+            // Jika emotionInput tidak diisi, munculkan alert dan return
+            if (!emotionLabel) {
+                alert('Please choose an emotion before capturing.');
+                return;
+            }
+
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            var imageData = canvas.toDataURL('image/jpeg');
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        alert('Upload berhasil');
+                        // predictEmotion(emotionLabel);
+                    } else {
+                        alert('Terjadi kesalahan saat mengunggah');
+                    }
+                }
+            };
+
+            var formData = new FormData();
+            formData.append('image', imageData);
+            formData.append('emotion', emotionLabel);
+
+            xhr.send(formData);
+        });
+
+        predictButton.addEventListener('click', function () {
+            predictEmotion(emotionInput.value);
+        });
+
+        function predictEmotion(emotionLabel) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/predict', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        var predictedEmotion = xhr.responseText;
+                        showResult(predictedEmotion);
+                        alert('Predicted Emotion: ' + predictedEmotion);
+                    } else {
+                        alert('Terjadi kesalahan saat memprediksi emosi');
+                    }
+                }
+            };
+
+            var formData = new FormData();
+            formData.append('text', emotionLabel);
+
+            xhr.send(formData);
+        }
+
+        function showResult(emotion) {
+            emotionOutput.textContent = emotion;
+            resultDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
