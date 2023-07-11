@@ -6,8 +6,8 @@ from transformers import DistilBertTokenizer, DistilBertForSequenceClassificatio
 
 app = Flask(__name__)
 
-# Load model yang telah dilatih
-model_path = 'model'  # Ganti dengan path model yang sesuai
+# Load the trained model
+model_path = 'model'
 tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 model = DistilBertForSequenceClassification.from_pretrained(model_path)
 
@@ -20,7 +20,7 @@ def upload():
     image_data = request.form['image']
     emotion_label = request.form['emotion']
     
-    # Menyimpan gambar ke dataset
+    # Save an image to a dataset
     save_image_to_dataset(image_data, emotion_label)
     
     return 'Upload berhasil'
@@ -29,7 +29,7 @@ def upload():
 def predict():
     text = request.form['text']
     
-    # Melakukan prediksi dengan model
+    # Make predictions with models
     input_ids = tokenizer.encode_plus(
         text,
         add_special_tokens=True,
@@ -45,28 +45,28 @@ def predict():
         predictions = torch.argmax(outputs.logits, dim=1)
         predicted_label = predictions.item()
     
-    labels = ['angry', 'happy', 'neutral', 'sad', 'stress', 'surprised'] # Ganti dengan label yang sesuai dengan model Anda
+    labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad']
     predicted_emotion = labels[predicted_label]
     
     return f'Emosi yang diprediksi: {predicted_emotion}'
 
 def save_image_to_dataset(image_data, emotion_label):
-    # Mendekode data gambar dari base64
+    # Decode image data from base64
     image_data = base64.b64decode(image_data.split(',')[1])
     
-    # Membuat folder dataset jika belum ada
+    # Create dataset folder if not exist 
     dataset_folder = 'dataset/train'
     if not os.path.exists(dataset_folder):
         os.makedirs(dataset_folder)
     
-    # Menentukan nama file untuk gambar baru
+    # Specify a file name for a new image
     emotion_folder = os.path.join(dataset_folder, emotion_label)
     if not os.path.exists(emotion_folder):
         os.makedirs(emotion_folder)
     image_count = len(os.listdir(emotion_folder))
     image_path = os.path.join(emotion_folder, f'{image_count}.jpg')
 
-    # Menyimpan gambar ke file
+    # Save an image to a file
     with open(image_path, 'wb') as file:
         file.write(image_data)
     
