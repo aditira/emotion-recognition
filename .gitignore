@@ -1,1 +1,4 @@
 model
+dataset
+.ipynb_checkpoints
+.env

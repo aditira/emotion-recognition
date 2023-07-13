@@ -1,15 +1,14 @@
 from flask import Flask, request, render_template
 import base64
 import os
-import torch
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+import numpy as np
 
 app = Flask(__name__)
 
-# Load the trained model
-model_path = 'model'
-tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-model = DistilBertForSequenceClassification.from_pretrained(model_path)
+# # Load the trained model
+model = load_model('model/master/emotion_model.h5')
 
 @app.route('/')
 def index():
@@ -27,35 +26,36 @@ def upload():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    text = request.form['text']
-    
-    # Make predictions with models
-    input_ids = tokenizer.encode_plus(
-        text,
-        add_special_tokens=True,
-        truncation=True,
-        max_length=512,
-        padding='max_length',
-        return_attention_mask=True,
-        return_tensors='pt'
-    )['input_ids'].to(model.device)
-    
-    with torch.no_grad():
-        outputs = model(input_ids)
-        predictions = torch.argmax(outputs.logits, dim=1)
-        predicted_label = predictions.item()
-    
-    labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad']
-    predicted_emotion = labels[predicted_label]
-    
-    return f'Emosi yang diprediksi: {predicted_emotion}'
+    image_data = request.form['image']
+    image_data = base64.b64decode(image_data.split(',')[1])
+    with open('dataset/predict/image.jpg', 'wb') as file:
+        file.write(image_data)
 
+    # Make predictions with models
+    predict_emotion()
+
+def predict_emotion():
+    img_path = 'dataset/predict/image.jpg'
+    # Load image
+    img = load_img(img_path, target_size=(48, 48), color_mode='grayscale')
+
+    # Convert image to array and expand dimension
+    img_array = img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+
+    # Standardize (Rescale pixel values)
+    test_data = img_array / 255.0
+
+    # Make prediction
+    preds = model.predict(test_data)
+    print(preds[0])
+     
 def save_image_to_dataset(image_data, emotion_label):
     # Decode image data from base64
     image_data = base64.b64decode(image_data.split(',')[1])
     
     # Create dataset folder if not exist 
-    dataset_folder = 'dataset/train'
+    dataset_folder = 'dataset/web'
     if not os.path.exists(dataset_folder):
         os.makedirs(dataset_folder)
     
@@ -64,7 +64,7 @@ def save_image_to_dataset(image_data, emotion_label):
     if not os.path.exists(emotion_folder):
         os.makedirs(emotion_folder)
     image_count = len(os.listdir(emotion_folder))
-    image_path = os.path.join(emotion_folder, f'{image_count}.jpg')
+    image_path = os.path.join(emotion_folder, f'image-{image_count+1}.jpg')
 
     # Save an image to a file
     with open(image_path, 'wb') as file:
